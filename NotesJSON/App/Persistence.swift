@@ -5,108 +5,59 @@
 //  Created by Roy Dimapilis on 9/13/25.
 //
 
-import CoreData
-import Foundation
-import SwiftUI
+import CoreData     // Brings in Apple's database system for storing data permanently
 
-struct PersistenceController {
-    static let shared = PersistenceController()
-    
-    // Preview instance for SwiftUI previews with sample data
-    static var preview: PersistenceController = {
-        let result = PersistenceController(inMemory: true)
-        let viewContext = result.container.viewContext
+struct PersistenceController {    // Creates a class to manage the Core Data database setup and operations
+    static let shared = PersistenceController()    // Creates a single shared instance that the entire app can use
+
+    static var preview: PersistenceController = {    // Creates a special version for SwiftUI previews with sample data
+        let result = PersistenceController(inMemory: true)    // Creates a temporary database in memory (not saved to disk)
+        let viewContext = result.container.viewContext       // Gets access to the database context for adding sample data
         
-        // Create sample notes using a helper function to avoid ambiguity
-        createSampleNotes(in: viewContext)
+        // Create sample data for previews
+        let sampleNote = Note(context: viewContext)    // Creates a new sample note in the preview database
+        sampleNote.title = "Sample Note"              // Sets the sample note's title
+        sampleNote.content = "This is a sample note for preview purposes."    // Sets the sample note's content
+        sampleNote.timestamp = Date()                 // Sets the sample note's timestamp to current date/time
         
-        do {
-            try viewContext.save()
-        } catch {
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+        do {                        // Tries to save the sample data
+            try viewContext.save()  // Saves the sample note to the preview database
+        } catch {                   // If saving fails
+            let nsError = error as NSError    // Converts the error to a more detailed format
+            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")    // Crashes the app with error details (for debugging)
         }
-        
-        return result
+        return result    // Returns the preview database controller with sample data
     }()
-    
-    let container: NSPersistentContainer
-    
-    init(inMemory: Bool = false) {
-        container = NSPersistentContainer(name: "Model")
+
+    let container: NSPersistentContainer    // Stores the main Core Data container that manages the database
+
+    init(inMemory: Bool = false) {    // Initializer that sets up the database, with option for memory-only storage
+        // FIXED: Using "Model" to match Model.xcdatamodeld
+        container = NSPersistentContainer(name: "Model")    // Creates database container using your "Model.xcdatamodeld" file
         
-        if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        if inMemory {    // If this is for testing/previews (temporary storage)
+            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")    // Sets database to not save to disk (goes to nowhere)
         }
         
-        // Configure store description
-        container.persistentStoreDescriptions.forEach { storeDescription in
-            storeDescription.shouldInferMappingModelAutomatically = true
-            storeDescription.shouldMigrateStoreAutomatically = true
-        }
-        
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+        container.loadPersistentStores(completionHandler: { _, error in    // Attempts to load/create the database files
+            if let error = error as NSError? {    // If loading the database fails
+                fatalError("Unresolved error \(error), \(error.userInfo)")    // Crashes the app with error details (for debugging)
             }
         })
         
-        // Enable automatic merging of changes from parent context
-        container.viewContext.automaticallyMergesChangesFromParent = true
-        
-        // Set merge policy to handle conflicts
-        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        container.viewContext.automaticallyMergesChangesFromParent = true    // Makes database automatically update when changes happen from other sources
     }
-}
-
-// MARK: - Helper Functions
-private func createSampleNotes(in context: NSManagedObjectContext) {
-    let sampleData = [
-        ("Meeting Notes", "Discussed project timeline, budget allocation, and team responsibilities.", 0),
-        ("Shopping List", "Milk, Bread, Eggs, Butter, Cheese", -2),
-        ("Important Reminder", "Call the dentist to schedule appointment", -24),
-        ("Vacation Ideas", "Research flights to Japan, check hotel availability", -48),
-        ("Book Notes", "Short note content", -72)  // ← Provide content since it's non-optional
-    ]
     
-    // Wait for Core Data to be ready before creating entities
-    context.performAndWait {
-        for (titleText, contentText, hoursOffset) in sampleData {
-            // Create using NSEntityDescription for better compatibility
-            guard let entity = NSEntityDescription.entity(forEntityName: "Note", in: context) else {
-                print("Warning: Could not find Note entity")
-                continue
-            }
-            
-            let note = NSManagedObject(entity: entity, insertInto: context)
-            
-            // Set all non-optional attributes
-            note.setValue(titleText, forKey: "title")
-            note.setValue(contentText, forKey: "content")  // Must have content since non-optional
-            
-            let timestamp = Calendar.current.date(byAdding: .hour, value: hoursOffset, to: Date()) ?? Date()
-            note.setValue(timestamp, forKey: "timestamp")
-        }
-    }
-}
+    func save() {    // Function to manually save any pending changes to the database
+        let context = container.viewContext    // Gets the main database context
 
-// MARK: - Traditional Preview (Compatible with older iOS versions)
-struct PersistenceController_Previews: PreviewProvider {
-    static var previews: some View {
-        let context = PersistenceController.preview.container.viewContext
-        
-        Text("Core Data Preview Context Ready")
-            .environment(\.managedObjectContext, context)
-            .onAppear {
-                // Test that sample data is loaded using NSEntityDescription
-                let request = NSFetchRequest<NSManagedObject>(entityName: "Note")
-                do {
-                    let notes = try context.fetch(request)
-                    print("Preview context loaded with \(notes.count) sample notes")
-                } catch {
-                    print("Error fetching preview notes: \(error)")
-                }
+        if context.hasChanges {    // Only saves if there are actually changes to save (for efficiency)
+            do {                   // Tries to save the changes
+                try context.save() // Writes all pending changes to the database
+            } catch {              // If saving fails
+                let nsError = error as NSError    // Converts error to detailed format
+                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")    // Crashes the app with error details (for debugging)
             }
+        }
     }
 }
