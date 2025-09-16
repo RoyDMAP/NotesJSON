@@ -15,7 +15,7 @@ struct NoteRowView: View {    // Creates a reusable component that displays a si
     var body: some View {     // Defines what this row looks like visually
         VStack(alignment: .leading, spacing: 6) {    // Arranges elements vertically, aligned to left, with 6 points spacing
             HStack {          // Arranges title and timestamp horizontally
-                Text(note.displayTitle)    // Shows the note's title using a custom property that handles empty titles
+                Text(note.title!)    // Shows the note's title using a custom property that handles empty titles
                     .font(.headline)       // Makes the text larger and bold like a headline
                     .lineLimit(1)          // Limits title to one line only, adds "..." if too long
                 
@@ -28,7 +28,7 @@ struct NoteRowView: View {    // Creates a reusable component that displays a si
                 }
             }
             
-            if note.hasContent {          // If the note has content (using custom property to check)
+            if !note.content!.isEmpty {          // If the note has content (using custom property to check)
                 Text(note.content!)       // Shows the note's content (! is safe because hasContent checked first)
                     .font(.body)          // Uses standard body text size
                     .foregroundStyle(.secondary)    // Makes it medium gray color

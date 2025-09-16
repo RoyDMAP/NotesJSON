@@ -133,7 +133,7 @@ struct NotesListView: View {    // Creates a new screen that displays a list of 
     }
 }
 
-#Preview {    // Creates a preview for developers to see how the screen looks
-    NotesListView()    // Shows the notes list view
-        .environment(\.managedObjectContext, PreviewContainer.createEmpty().context)    // Uses an empty database for the preview
+#Preview {
+    NotesListView()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
